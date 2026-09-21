@@ -1,0 +1,521 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rally 1_16_23 Reconstruction</title>
+<style>
+:root{color-scheme:light dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#eef1ec; --panel:#ffffff; --panel-2:#f6f8f4; --line:#d3dbd2;
+  --ink:#181f1b; --ink-2:#4b5751; --ink-3:#7c8a83;
+  --accent:#0f7a5a; --accent-soft:#d7ece3;
+  --mesh:#1fa37a; --skel:#ff8a3d; --warn:#c2571f;
+  --scene-top:#e7ece6; --scene-bot:#cfd8cf;
+  --shadow:0 1px 2px rgba(24,31,27,.06),0 8px 24px rgba(24,31,27,.05);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0e1412; --panel:#151d1a; --panel-2:#1b2521; --line:#2b3733;
+  --ink:#e8efea; --ink-2:#a3b2ab; --ink-3:#71827b;
+  --accent:#3ecfa0; --accent-soft:#12302a;
+  --mesh:#35d3a3; --skel:#ff9a52; --warn:#ff9a52;
+  --scene-top:#16201d; --scene-bot:#0b100e;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+}}
+:root[data-theme="dark"]{
+  --ground:#0e1412; --panel:#151d1a; --panel-2:#1b2521; --line:#2b3733;
+  --ink:#e8efea; --ink-2:#a3b2ab; --ink-3:#71827b;
+  --accent:#3ecfa0; --accent-soft:#12302a;
+  --mesh:#35d3a3; --skel:#ff9a52; --warn:#ff9a52;
+  --scene-top:#16201d; --scene-bot:#0b100e;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,"Noto Sans TC",sans-serif;font-size:14px;line-height:1.55;
+  padding-block:20px 28px;padding-left:16px;padding-right:16px;max-width:1500px;margin:0 auto}
+h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;margin:0;text-wrap:balance}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 22px;margin-bottom:18px}
+h1{font-size:26px;letter-spacing:-.01em}
+.slug{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--accent);
+  background:var(--accent-soft);padding:3px 9px;border-radius:4px}
+header p{margin:0;color:var(--ink-2);max-width:62ch}
+
+.stats{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel);overflow:hidden;margin-bottom:18px}
+.stat{padding:9px 16px;border-right:1px solid var(--line);flex:1 1 130px;min-width:0}
+.stat:last-child{border-right:0}
+.stat dt{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0}
+.stat dd{margin:1px 0 0;font-family:"IBM Plex Mono",monospace;font-size:16px;font-variant-numeric:tabular-nums}
+.stat dd small{font-size:11px;color:var(--ink-3)}
+
+.stage{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:1fr}}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:8px 12px;border-bottom:1px solid var(--line)}
+.card-hd h2{font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+
+#scene{width:100%;aspect-ratio:4/3;max-width:100%;display:block;border-radius:0 0 8px 8px;cursor:grab}
+#scene:active{cursor:grabbing}
+.hint{padding:7px 12px;font-size:11.5px;color:var(--ink-3);border-top:1px solid var(--line)}
+
+.views{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:460px){.views{grid-template-columns:1fr}}
+.tile{position:relative;background:#000;border:1px solid var(--line);border-radius:6px;overflow:hidden;
+  aspect-ratio:8/5}
+.tile video{width:100%;height:100%;display:block;object-fit:cover}
+.tile canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.tile .tag{position:absolute;left:6px;top:5px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.05em;color:#fff;background:rgba(0,0,0,.55);padding:1px 6px;border-radius:3px}
+.tile.fish .tag::after{content:" · fisheye";color:#ffc48a}
+
+.notes{padding:11px 13px;font-size:12.5px;color:var(--ink-2);display:grid;gap:7px;align-content:start}
+.notes b{color:var(--ink);font-weight:600}
+.notes code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:var(--panel-2);
+  border:1px solid var(--line);padding:0 4px;border-radius:3px}
+
+.transport{margin-top:16px;padding:12px 14px 14px}
+.trow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+button{font:inherit;font-size:13px;color:var(--ink);background:var(--panel-2);
+  border:1px solid var(--line);border-radius:6px;padding:5px 13px;cursor:pointer}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#play{min-width:74px;font-weight:600}
+.readout{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-2);white-space:nowrap}
+.readout b{color:var(--ink)}
+input[type=range]{flex:1 1 220px;min-width:140px;accent-color:var(--accent)}
+.speed{display:flex;gap:4px}
+.speed button{padding:4px 9px;font-size:12px;font-family:"IBM Plex Mono",monospace}
+
+#jitter{width:100%;height:46px;display:block;margin-top:10px;border-radius:4px;background:var(--panel-2);
+  border:1px solid var(--line)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--ink-3)}
+.legend span{display:flex;align-items:center;gap:5px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+.axes{margin-top:18px;padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.axes h3{font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6px}
+.axes p{margin:0 0 6px;color:var(--ink-2);font-size:12.5px}
+.axes code{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:var(--panel-2);
+  border:1px solid var(--line);padding:0 4px;border-radius:3px}
+table{border-collapse:collapse;font-family:"IBM Plex Mono",monospace;font-size:11.5px;width:100%}
+th,td{text-align:right;padding:2px 6px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--ink-3);font-weight:500}
+.scroller{overflow-x:auto}
+footer{margin-top:20px;font-size:11.5px;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;
+  overflow-wrap:anywhere}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header>
+  <h1>Rally 1_16_23</h1>
+  <span class="slug">250112_2 · left · 女單</span>
+  <p>EasyMocap 五機重建的一個乾淨片段。左邊是 SMPL mesh 在世界座標裡的真實位置，右邊是同一時刻的五個原始視角；橘色骨架是把重建的 3D 關節用各機內外參投影回影像的結果。</p>
+</header>
+
+<dl class="stats">
+  <div class="stat"><dt>片長</dt><dd>261 <small>frames · 5.22 s @50fps</small></dd></div>
+  <div class="stat"><dt>PA-MPJPE vs GT</dt><dd>21.0 <small>mm 平均 / 40.8 max</small></dd></div>
+  <div class="stat"><dt>抖動 中位數</dt><dd>9.4 <small>mm·frame⁻²</small></dd></div>
+  <div class="stat"><dt>抖動 峰值</dt><dd>22.6 <small>mm·frame⁻²</small></dd></div>
+  <div class="stat"><dt>GT 覆蓋</dt><dd>261/261 <small>frames</small></dd></div>
+  <div class="stat"><dt>視角</dt><dd>0 2 4 7 9 <small>左半場</small></dd></div>
+</dl>
+
+<div class="stage">
+  <section class="card">
+    <div class="card-hd">
+      <h2>SMPL mesh · 世界座標</h2>
+      <div class="speed">
+        <button id="bCourt" aria-pressed="true">球場</button>
+        <button id="bCams" aria-pressed="true">相機</button>
+        <button id="bWire" aria-pressed="false">線框</button>
+      </div>
+    </div>
+    <canvas id="scene"></canvas>
+    <p class="hint" id="hint">載入 261 幀 SMPL mesh（約 14 MB）…</p>
+    <p class="hint" hidden id="hint2">拖曳旋轉 · 滾輪縮放 · 地板格線 1 m。場地中心地面為原點下方 0.5 m 處（見下方座標系說明）。</p>
+  </section>
+
+  <section>
+    <div class="views">
+      <div class="tile"><video id="v0" muted playsinline preload="auto" src="view0.mp4"></video><canvas id="c0"></canvas><span class="tag">view 0</span></div>
+      <div class="tile"><video id="v2" muted playsinline preload="auto" src="view2.mp4"></video><canvas id="c2"></canvas><span class="tag">view 2</span></div>
+      <div class="tile fish"><video id="v4" muted playsinline preload="auto" src="view4.mp4"></video><canvas id="c4"></canvas><span class="tag">view 4</span></div>
+      <div class="tile"><video id="v7" muted playsinline preload="auto" src="view7.mp4"></video><canvas id="c7"></canvas><span class="tag">view 7</span></div>
+      <div class="tile"><video id="v9" muted playsinline preload="auto" src="view9.mp4"></video><canvas id="c9"></canvas><span class="tag">view 9</span></div>
+      <div class="card notes">
+        <div><b>投影檢查</b>：橘色骨架 = 重建的 25 個 3D 關節，用 <code>K, dist, R, T</code> 投影回這一格的影像。貼合代表三角化與外參一致。</div>
+        <div><b>view 4</b> 是魚眼，畫面沒有先去畸變，但投影已套用 <code>k1 k2 k3 p1 p2</code>，所以骨架仍然對得上。</div>
+        <div><b>view 4 影片是原始檔</b>；正式重建時這一路會先跑 defisheye 再送進 EasyMocap。</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="card transport">
+  <div class="trow">
+    <button id="play">播放</button>
+    <span class="readout">frame <b id="fnum">000</b> / 260 &nbsp;·&nbsp; t <b id="tsec">0.00</b> s</span>
+    <input id="scrub" type="range" min="0" max="260" value="0" step="1" aria-label="frame scrubber">
+    <div class="speed" role="group" aria-label="播放速度">
+      <button class="sp" data-r="0.25">0.25×</button>
+      <button class="sp" data-r="0.5">0.5×</button>
+      <button class="sp" data-r="1" aria-pressed="true">1×</button>
+    </div>
+    <button id="bSkel" aria-pressed="true">骨架疊圖</button>
+  </div>
+  <canvas id="jitter"></canvas>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--accent)"></i>每幀關節加速度（抖動量），縱軸 0–25 mm·frame⁻²</span>
+    <span><i class="sw" style="background:var(--skel)"></i>目前幀</span>
+  </div>
+</section>
+
+<section class="card axes">
+  <div>
+    <h3>座標系是怎麼定的</h3>
+    <p>世界原點在<b>球場正中央、地面往上 0.5 m</b>，而且 <b>−Y 才是向上</b>。所以：</p>
+    <p><code>y = +0.5</code> 是地板 &nbsp;·&nbsp; <code>y = −1.1</code> 大約是頭頂 &nbsp;·&nbsp; <code>y = −5.1</code> 是相機掛的高度。</p>
+    <p>換成一般「Y 軸向上」的引擎（three.js、Blender）要做的就是 <code>Y' = 0.5 − y</code>：先反號、再補那 0.5 m —— 這就是「Y 軸相反、高度 −0.5 m」的意思。這頁的 3D 就是這樣轉的。</p>
+  </div>
+  <div>
+    <h3>X / Z 怎麼分</h3>
+    <p><code>z</code> 沿球場長邊（±6.70 m 是底線，網子在 z = 0），<code>x</code> 沿短邊（±3.05 m 是雙打邊線）。左半場是 z 為正那一側。</p>
+    <p>這個片段的選手活動範圍：<code>x 0.84…1.80</code>、<code>z 3.70…5.56</code>，落在左半場右後方，和影片一致。</p>
+    <p>經驗值：整段 mesh 最低點中位數 <code>y = 0.537</code>、身高 1.62 m —— 地板 0.5 m 這個假設對得起來，誤差約 4 cm。</p>
+  </div>
+  <div>
+    <h3>相機的位置</h3>
+    <p>外參存的是 <code>[R|T]</code>（world → camera）。相機在世界座標的位置要自己算：<code>C = −Rᵀ T</code>。</p>
+    <div class="scroller"><table>
+      <thead><tr><th>cam</th><th>x</th><th>y</th><th>離地</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>−11.46</td><td>−5.08</td><td>5.58 m</td></tr>
+        <tr><td>2</td><td>+11.47</td><td>−5.06</td><td>5.56 m</td></tr>
+        <tr><td>4</td><td>+0.08</td><td>−3.90</td><td>4.40 m</td></tr>
+        <tr><td>7</td><td>−11.23</td><td>−5.16</td><td>5.66 m</td></tr>
+        <tr><td>9</td><td>+11.44</td><td>−4.99</td><td>5.49 m</td></tr>
+      </tbody>
+    </table></div>
+    <p>相機是原點的是<b>相機座標系</b>（<code>Xc = R·X + T</code> 之後的那個），不是這裡的世界座標系；兩者常被混在一起講。</p>
+  </div>
+</section>
+
+<footer>
+  run: /train-data-5-hdd/chlin/easymocap_runs/250112_2/1_16_23/left &nbsp;·&nbsp;
+  raw: /train-data-5-hdd/clchen/badminton_dataset/raw/video/250112_2/1_16_23_{0,2,4,7,9}.mp4
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+(function(){
+const VIEWS=['0','2','4','7','9'], NF=261, FPS=50, FLOOR=0.5;
+const vids=VIEWS.map(v=>document.getElementById('v'+v));
+const cvs=VIEWS.map(v=>document.getElementById('c'+v));
+const master=vids[0];
+let CAMS=null, KP=null, META=null, VERT=null, FACES=null;
+let showSkel=true, showCourt=true, showCams=true, wire=false;
+
+// ---------- world -> three (Y up, right-handed preserved: flip x and y) ----------
+const W2T=(x,y,z)=>[-x, FLOOR-y, z];
+
+// ---------- three.js scene ----------
+const canvas=document.getElementById('scene');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const cam3=new THREE.PerspectiveCamera(38,4/3,0.1,200);
+const css=getComputedStyle(document.documentElement);
+function tok(n){return css.getPropertyValue(n).trim()||'#888';}
+function paintBg(){
+  const c=getComputedStyle(document.documentElement).getPropertyValue('--scene-bot').trim();
+  scene.background=new THREE.Color(c||'#ccc');
+}
+paintBg();
+scene.add(new THREE.HemisphereLight(0xffffff,0x4a5a52,1.35));
+const key=new THREE.DirectionalLight(0xffffff,1.1); key.position.set(4,8,6); scene.add(key);
+const fill=new THREE.DirectionalLight(0xffffff,.35); fill.position.set(-5,3,-4); scene.add(fill);
+
+// floor grid
+const grid=new THREE.GridHelper(30,30,0x7c8a83,0x7c8a83);
+grid.material.opacity=.22; grid.material.transparent=true; scene.add(grid);
+
+// court lines (y=0 in three space = floor)
+const courtG=new THREE.Group(); scene.add(courtG);
+function seg(pts,color,w){
+  const g=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(...p)));
+  return new THREE.Line(g,new THREE.LineBasicMaterial({color,linewidth:w||1}));
+}
+(function court(){
+  const col=0xffffff, L=6.70, SW=3.05, SS=2.59, SV=1.98, DL=5.94;
+  const f=(x,z)=>[-x,0,z];
+  const lines=[
+    [[SW,-L],[SW,L]],[[-SW,-L],[-SW,L]],[[SS,-L],[SS,L]],[[-SS,-L],[-SS,L]],
+    [[-SW,L],[SW,L]],[[-SW,-L],[SW,-L]],[[-SW,DL],[SW,DL]],[[-SW,-DL],[SW,-DL]],
+    [[-SW,SV],[SW,SV]],[[-SW,-SV],[SW,-SV]],[[-SW,0],[SW,0]],
+    [[0,SV],[0,L]],[[0,-SV],[0,-L]]
+  ];
+  lines.forEach(([a,b])=>courtG.add(seg([f(a[0],a[1]),f(b[0],b[1])],col)));
+  courtG.children.forEach(o=>{o.material.opacity=.55;o.material.transparent=true;});
+  // net
+  const nh=1.55, net=new THREE.Group();
+  net.add(seg([[-SW,nh,0],[SW,nh,0]],0x9fb3aa));
+  net.add(seg([[-SW,0,0],[-SW,nh,0]],0x9fb3aa));
+  net.add(seg([[SW,0,0],[SW,nh,0]],0x9fb3aa));
+  for(let i=-6;i<=6;i++){net.add(seg([[i*0.5,nh,0],[i*0.5,nh-0.76,0]],0x9fb3aa));}
+  net.add(seg([[-SW,nh-0.76,0],[SW,nh-0.76,0]],0x9fb3aa));
+  net.children.forEach(o=>{o.material.opacity=.35;o.material.transparent=true;});
+  courtG.add(net);
+})();
+
+// origin marker: world origin is 0.5 m ABOVE the floor
+const originG=new THREE.Group(); scene.add(originG);
+(function(){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(0.06,16,12),
+    new THREE.MeshBasicMaterial({color:0xff8a3d}));
+  m.position.set(0,FLOOR,0); originG.add(m);
+  originG.add(seg([[0,0,0],[0,FLOOR,0]],0xff8a3d));
+})();
+
+const camG=new THREE.Group(); scene.add(camG);
+const meshMat=new THREE.MeshStandardMaterial({color:0x2ec495,roughness:.62,metalness:.05,
+  side:THREE.DoubleSide,flatShading:false});
+let mesh=null;
+
+// orbit (hand-rolled, no extra lib)
+let az=-0.85, el=0.32, dist=9.5, tgt=new THREE.Vector3(-1.3,0.9,4.6);
+function place(){
+  cam3.position.set(tgt.x+dist*Math.cos(el)*Math.sin(az),
+                    tgt.y+dist*Math.sin(el),
+                    tgt.z+dist*Math.cos(el)*Math.cos(az));
+  cam3.lookAt(tgt);
+}
+let drag=null;
+canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  az-=(e.clientX-drag.x)*0.006; el=Math.max(-0.2,Math.min(1.4,el+(e.clientY-drag.y)*0.005));
+  drag={x:e.clientX,y:e.clientY}; place();
+});
+addEventListener('pointerup',()=>drag=null);
+canvas.addEventListener('wheel',e=>{e.preventDefault();
+  dist=Math.max(2.5,Math.min(30,dist*(1+Math.sign(e.deltaY)*0.09))); place();},{passive:false});
+
+function resize(){
+  const w=canvas.clientWidth||600, h=canvas.clientHeight||450;
+  renderer.setSize(w,h,false); cam3.aspect=w/h; cam3.updateProjectionMatrix();
+}
+addEventListener('resize',()=>{resize();sizeOverlays();drawJitter();});
+
+// ---------- data ----------
+async function boot(){
+  const [m,c,k]=await Promise.all([
+    fetch('meta.json').then(r=>r.json()),
+    fetch('cams.json').then(r=>r.json()),
+    fetch('kp.json').then(r=>r.json())
+  ]);
+  META=m; CAMS=c; KP=k.kp;
+  const [vb,fa]=await Promise.all([
+    fetch('verts.b64.txt').then(r=>r.text()),
+    fetch('faces.json').then(r=>r.json())
+  ]);
+  const bin=atob(vb.trim()), u8=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  VERT=new Uint16Array(u8.buffer); FACES=Uint16Array.from(fa);
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(META.nverts*3),3));
+  geo.setIndex(new THREE.BufferAttribute(new Uint16Array(FACES),1));
+  mesh=new THREE.Mesh(geo,meshMat); scene.add(mesh);
+  buildCams();
+  computeJitter();
+  document.getElementById('hint').hidden=true;
+  document.getElementById('hint2').hidden=false;
+  resize(); place(); setFrame(0); drawJitter();
+  requestAnimationFrame(loop);
+}
+
+function buildCams(){
+  VIEWS.forEach(v=>{
+    const C=CAMS[v].C, p=W2T(C[0],C[1],C[2]);
+    const g=new THREE.Group(); g.position.set(p[0],p[1],p[2]);
+    const box=new THREE.Mesh(new THREE.BoxGeometry(.28,.2,.2),
+      new THREE.MeshStandardMaterial({color:0x8fa39a,roughness:.7}));
+    g.add(box);
+    // look direction: camera +Z axis in world = R^T * [0,0,1]
+    const R=CAMS[v].R, d=[R[2][0],R[2][1],R[2][2]];
+    const dp=W2T(C[0]+d[0]*1.6,C[1]+d[1]*1.6,C[2]+d[2]*1.6);
+    const ln=seg([[p[0],p[1],p[2]],dp],0xff8a3d); ln.material.opacity=.7; ln.material.transparent=true;
+    camG.add(g); camG.add(ln);
+  });
+}
+
+const lo=()=>META.lo, sc=()=>META.scale;
+function setMesh(f){
+  if(!mesh)return;
+  const n=META.nverts, off=f*n*3, pos=mesh.geometry.attributes.position.array;
+  const L=META.lo, S=META.scale;
+  for(let i=0;i<n;i++){
+    const x=VERT[off+i*3]*S[0]+L[0], y=VERT[off+i*3+1]*S[1]+L[1], z=VERT[off+i*3+2]*S[2]+L[2];
+    pos[i*3]=-x; pos[i*3+1]=FLOOR-y; pos[i*3+2]=z;
+  }
+  mesh.geometry.attributes.position.needsUpdate=true;
+  mesh.geometry.computeVertexNormals();
+  mesh.geometry.computeBoundingSphere();
+}
+
+// ---------- 2D projection overlay ----------
+const LIMBS=[[1,0],[0,15],[0,16],[15,17],[16,18],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],
+ [1,8],[8,9],[9,10],[10,11],[8,12],[12,13],[13,14],[11,22],[22,23],[11,24],[14,19],[19,20],[14,21]];
+function project(v,X){
+  const c=CAMS[v], R=c.R, T=c.T;
+  const zc=R[2][0]*X[0]+R[2][1]*X[1]+R[2][2]*X[2]+T[2];
+  if(zc<=0.01) return null;
+  const xc=R[0][0]*X[0]+R[0][1]*X[1]+R[0][2]*X[2]+T[0];
+  const yc=R[1][0]*X[0]+R[1][1]*X[1]+R[1][2]*X[2]+T[1];
+  const a=xc/zc, b=yc/zc, r2=a*a+b*b;
+  const rad=1+c.k[0]*r2+c.k[1]*r2*r2+c.k[2]*r2*r2*r2;
+  const xd=a*rad+2*c.p[0]*a*b+c.p[1]*(r2+2*a*a);
+  const yd=b*rad+c.p[0]*(r2+2*b*b)+2*c.p[1]*a*b;
+  return [c.fx*xd+c.cx, c.fy*yd+c.cy];
+}
+function sizeOverlays(){
+  cvs.forEach(cv=>{
+    const r=cv.getBoundingClientRect(), dpr=Math.min(devicePixelRatio,2);
+    cv.width=Math.max(1,Math.round(r.width*dpr)); cv.height=Math.max(1,Math.round(r.height*dpr));
+  });
+}
+function drawOverlay(f){
+  VIEWS.forEach((v,i)=>{
+    const cv=cvs[i], ctx=cv.getContext('2d');
+    ctx.clearRect(0,0,cv.width,cv.height);
+    if(!showSkel||!KP)return;
+    const s=cv.width/CAMS[v].W;
+    const kp=KP[f], pts=kp.map(j=>j[3]>0.05?project(v,j):null);
+    ctx.lineWidth=Math.max(1.6,2.2*s*3); ctx.strokeStyle='rgba(255,138,61,.95)';
+    ctx.lineCap='round';
+    LIMBS.forEach(([a,b])=>{
+      if(!pts[a]||!pts[b])return;
+      ctx.beginPath(); ctx.moveTo(pts[a][0]*s,pts[a][1]*s); ctx.lineTo(pts[b][0]*s,pts[b][1]*s); ctx.stroke();
+    });
+    ctx.fillStyle='#fff';
+    pts.forEach(p=>{if(!p)return;ctx.beginPath();ctx.arc(p[0]*s,p[1]*s,Math.max(1.5,2*s*3),0,6.284);ctx.fill();});
+  });
+}
+
+// ---------- jitter strip ----------
+let JIT=null;
+function computeJitter(){
+  JIT=new Float32Array(NF);
+  for(let f=1;f<NF-1;f++){
+    let s=0,n=0;
+    for(let j=0;j<25;j++){
+      const a=KP[f-1][j],b=KP[f][j],c=KP[f+1][j];
+      if(a[3]<=0.05||b[3]<=0.05||c[3]<=0.05)continue;
+      const dx=a[0]-2*b[0]+c[0],dy=a[1]-2*b[1]+c[1],dz=a[2]-2*b[2]+c[2];
+      s+=Math.sqrt(dx*dx+dy*dy+dz*dz)*1000;n++;
+    }
+    JIT[f]=n?s/n:0;
+  }
+  JIT[0]=JIT[1]; JIT[NF-1]=JIT[NF-2];
+}
+const jc=document.getElementById('jitter');
+function drawJitter(){
+  if(!JIT)return;
+  const dpr=Math.min(devicePixelRatio,2), r=jc.getBoundingClientRect();
+  jc.width=Math.round(r.width*dpr); jc.height=Math.round(46*dpr);
+  const ctx=jc.getContext('2d'), W=jc.width, H=jc.height, MAX=25;
+  ctx.clearRect(0,0,W,H);
+  const st=getComputedStyle(document.documentElement);
+  ctx.strokeStyle=st.getPropertyValue('--line').trim(); ctx.lineWidth=1;
+  [0.5,1].forEach(q=>{const y=H-H*q*0.92-2;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();});
+  ctx.beginPath();
+  for(let f=0;f<NF;f++){
+    const x=f/(NF-1)*W, y=H-Math.min(1,JIT[f]/MAX)*H*0.92-2;
+    f?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.strokeStyle=st.getPropertyValue('--accent').trim(); ctx.lineWidth=1.6*dpr; ctx.stroke();
+  const x=cur/(NF-1)*W;
+  ctx.strokeStyle=st.getPropertyValue('--skel').trim(); ctx.lineWidth=1.8*dpr;
+  ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+}
+
+// ---------- transport ----------
+let cur=-1;
+const fnum=document.getElementById('fnum'), tsec=document.getElementById('tsec'),
+      scrub=document.getElementById('scrub'), play=document.getElementById('play');
+function setFrame(f){
+  f=Math.max(0,Math.min(NF-1,f|0));
+  if(f===cur)return;
+  cur=f; setMesh(f); drawOverlay(f); drawJitter();
+  fnum.textContent=String(f).padStart(3,'0');
+  tsec.textContent=(f/FPS).toFixed(2);
+  if(+scrub.value!==f)scrub.value=f;
+}
+scrub.addEventListener('input',()=>{
+  const f=+scrub.value; pause();
+  vids.forEach(v=>{try{v.currentTime=f/FPS;}catch(e){}});
+  setFrame(f);
+});
+function playAll(){vids.forEach(v=>v.play().catch(()=>{}));play.textContent='暫停';play.setAttribute('aria-pressed','true');}
+function pause(){vids.forEach(v=>v.pause());play.textContent='播放';play.setAttribute('aria-pressed','false');}
+play.addEventListener('click',()=>{
+  if(master.paused){ if(master.currentTime>=master.duration-0.02)vids.forEach(v=>v.currentTime=0); playAll(); }
+  else pause();
+});
+document.querySelectorAll('.sp').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.sp').forEach(o=>o.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true');
+  vids.forEach(v=>v.playbackRate=+b.dataset.r);
+}));
+document.getElementById('bSkel').addEventListener('click',e=>{
+  showSkel=!showSkel; e.currentTarget.setAttribute('aria-pressed',showSkel);
+  drawOverlay(Math.max(cur,0));
+});
+document.getElementById('bCourt').addEventListener('click',e=>{
+  showCourt=!showCourt; courtG.visible=showCourt; grid.visible=showCourt;
+  e.currentTarget.setAttribute('aria-pressed',showCourt);
+});
+document.getElementById('bCams').addEventListener('click',e=>{
+  showCams=!showCams; camG.visible=showCams; e.currentTarget.setAttribute('aria-pressed',showCams);
+});
+document.getElementById('bWire').addEventListener('click',e=>{
+  wire=!wire; meshMat.wireframe=wire; e.currentTarget.setAttribute('aria-pressed',wire);
+});
+addEventListener('keydown',e=>{
+  if(e.key===' '){e.preventDefault();play.click();}
+  else if(e.key==='ArrowRight'){pause();const f=cur+1;vids.forEach(v=>v.currentTime=f/FPS);setFrame(f);}
+  else if(e.key==='ArrowLeft'){pause();const f=cur-1;vids.forEach(v=>v.currentTime=f/FPS);setFrame(f);}
+});
+
+let lastSync=0;
+function loop(t){
+  requestAnimationFrame(loop);
+  if(!master.paused){
+    if(t-lastSync>400){
+      lastSync=t;
+      vids.slice(1).forEach(v=>{if(Math.abs(v.currentTime-master.currentTime)>0.09)v.currentTime=master.currentTime;});
+    }
+    setFrame(Math.round(master.currentTime*FPS));
+    if(master.ended)pause();
+  }
+  renderer.render(scene,cam3);
+}
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{paintBg();drawJitter();});
+const ro=new ResizeObserver(()=>{resize();sizeOverlays();if(cur>=0)drawOverlay(cur);drawJitter();});
+ro.observe(canvas); cvs.forEach(c=>ro.observe(c));
+Promise.all(vids.map(v=>new Promise(res=>{
+  if(v.readyState>=2)return res();
+  v.addEventListener('loadeddata',res,{once:true});
+}))).then(()=>{vids.forEach(v=>{try{v.currentTime=0;}catch(e){}});});
+boot();
+})();
+</script>
