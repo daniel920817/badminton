@@ -45,3 +45,32 @@ branch 選 `main` / `(root)`，等一分鐘就會有公開網址。
 - mesh 頂點來自 `easymocap_runs/<match>/<rally>/<side>/output/smpl/*.json` 過 SMPL forward
 - 關節來自同一路徑下的 `output/keypoints3d/*.json`
 - 相機參數來自 `~/badminton/data/camera_params/Cam_*_{intrinsic,extrinsic}.npy`
+
+---
+
+# easymocap_runs 重建檢查頁（雙方選手 + GT 對照）
+
+跟 `web_demo_241217_1` 同樣的資料來源（`easymocap_runs` + 原始影片，全長），版面一樣，另外加了：
+
+- **GT 對照**：學長的 SMPL 以白色半透明 mesh 疊在我們的重建上（橘 = 左半場、藍 = 右半場）
+- **偵測框**：每個視角畫出 `filter_court.py` 選中的 2D 偵測；跟 GT 回投影 IoU < 0.3 的標紅（選到非球員，例如裁判）。魚眼視角不畫框
+- **手腕誤差曲線**：每幀手腕誤差 vs GT（骨盆對齊），紅點 = 該幀有視角選錯人
+- **跳到** 關鍵幀的按鈕，播放速度最慢 0.1×；拖時間軸時影片會一起跳
+
+| 頁面 | 內容 |
+|---|---|
+| [`normal_241217_1_1_00_01/`](normal_241217_1_1_00_01/) | Rally 241217_1 · 1_00_01（正常） |
+| [`umpire_250114_1_1_13_20/`](umpire_250114_1_1_13_20/) | Rally 250114_1 · 1_13_20（抓到裁判）：cam 7 / cam 8 偶爾選到高椅上的主審 |
+| [`hand_241217_1_1_00_01/`](hand_241217_1_1_00_01/) | Rally 241217_1 · 1_00_01（結尾手部錯誤）：左半場選手撲球時 frame 212–216 手臂位置錯 |
+
+### 每個資料夾的檔案
+
+| 檔案 | 內容 |
+|---|---|
+| `index.html` | 整頁（three.js 由 cdnjs 載入），標題、說明、統計都從 `meta.json` 讀 |
+| `verts_{left,right}.bin` / `verts_{left,right}_gt.bin` | 重建 / GT 的 SMPL 頂點，N×6890×3 uint16 (little-endian)，`value*scale+lo` 還原 |
+| `kp_{left,right}.json` | 每幀 25 個 body25 關節（由重建 SMPL 回歸） |
+| `boxes.json` | 每個視角每幀選中的 bbox `[x1,y1,x2,y2,wrong]` |
+| `faces.json` / `cams.json` | SMPL 三角面 / 十台相機（原始內外參，跟原始影片一致） |
+| `meta.json` | 幀數、量化參數、GT mask、每幀手腕誤差與選錯人數、說明文字 |
+| `view*.mp4` | 十個視角的原始影片（960×600, 50 fps） |
