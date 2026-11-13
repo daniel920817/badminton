@@ -128,6 +128,8 @@ header p{max-width:90ch}
         <button id="bCams" aria-pressed="true">相機</button>
         <button id="bNet" aria-pressed="true">球網</button>
         <button id="bGT" aria-pressed="true">GT 對照</button>
+        <button id="bBall3" aria-pressed="true" hidden>羽球</button>
+        <button id="bRacket3" aria-pressed="true" hidden>球拍</button>
         <button id="bWire" aria-pressed="false">線框</button>
       </div>
     </div>
@@ -162,8 +164,8 @@ header p{max-width:90ch}
     </div>
     <button id="bSkel" aria-pressed="true">骨架疊圖</button>
     <button id="bBox" aria-pressed="true">偵測框</button>
-    <button id="bBall" aria-pressed="true" hidden>羽球</button>
-    <button id="bRacket" aria-pressed="true" hidden>球拍</button>
+    <button id="bBall" aria-pressed="false" hidden>羽球疊圖</button>
+    <button id="bRacket" aria-pressed="false" hidden>球拍疊圖</button>
   </div>
   <div class="jumps" id="jumps"></div>
   <canvas id="jitter"></canvas>
@@ -277,9 +279,10 @@ const trailGeo=new THREE.BufferGeometry();
 trailGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(TRAIL*3),3));
 trailGeo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(TRAIL*3),3));
 const trail=new THREE.Line(trailGeo,new THREE.LineBasicMaterial({vertexColors:true})); ballG.add(trail);
-let BALL=null, showBall=true;
+// 3D 跟 2D 疊圖分開開關: 3D 預設開, 2D 疊圖預設關
+let BALL=null, showBall3=true, showBall2=false;
 function setBall(f){
-  ballG.visible=!!(BALL&&showBall); if(!ballG.visible)return;
+  ballG.visible=!!(BALL&&showBall3); if(!ballG.visible)return;
   const p=BALL.pos[f]; ballMesh.visible=ballShadow.visible=!!p;
   if(p){const q=W2T(...p); ballMesh.position.set(...q); ballShadow.position.set(q[0],0.003,q[2]);
     ballMat.opacity=BALL.src[f]===2?.55:1;}
@@ -294,7 +297,7 @@ function setBall(f){
 
 // ---------- 球拍 (recon 模式: META.racket_shape + 每格 3x4 矩陣) ----------
 // obj 座標: 握把端在原點, 拍頭往 -x, 拍面在 x-z 平面。世界 p = R v + t, 再經 W2T 翻到 three.js
-const rackets={}; let showRacket=true;
+const rackets={}; let showRacket3=true, showRacket2=false;
 function racketPts(sh,n){const P=[];for(let i=0;i<n;i++){const t=i/n*Math.PI*2;P.push([sh.cx+sh.a*Math.cos(t),0,sh.b*Math.sin(t)]);}return P;}
 function buildRackets(){
   const sh=META.racket_shape; if(!sh)return;
@@ -316,12 +319,12 @@ function buildRackets(){
     rod(sh.shaft_end,0,sh.handle_r,accent);
     scene.add(g); rackets[s]=g;
   });
-  document.getElementById('bRacket').hidden=false;
+  document.getElementById('bRacket').hidden=false; document.getElementById('bRacket3').hidden=false;
 }
 function racketWorld(M,v){return [M[0]*v[0]+M[1]*v[1]+M[2]*v[2]+M[3], M[4]*v[0]+M[5]*v[1]+M[6]*v[2]+M[7], M[8]*v[0]+M[9]*v[1]+M[10]*v[2]+M[11]];}
 function setRackets(f){
   SIDES.forEach(s=>{const g=rackets[s]; if(!g)return; const M=META.players[s].racket[f];
-    g.visible=showRacket&&!!M; if(!g.visible)return;
+    g.visible=showRacket3&&!!M; if(!g.visible)return;
     // W2T: x -> -x, y -> FLOOR - y, z -> z
     g.matrix.set(-M[0],-M[1],-M[2],-M[3], -M[4],-M[5],-M[6],FLOOR-M[7], M[8],M[9],M[10],M[11], 0,0,0,1);
     g.matrixWorldNeedsUpdate=true;});
@@ -430,8 +433,8 @@ async function boot(){
   BALL=await fetch('ball3d.json').then(r=>r.ok?r.json():null).catch(()=>null);
   fillPage(); buildCams();
   if(RECON())buildRackets();
-  if(BALL&&RECON()){document.getElementById('bBall').hidden=false;}
-  else if(BALL){document.getElementById('bBall').hidden=false;
+  if(BALL)['bBall','bBall3'].forEach(id=>document.getElementById(id).hidden=false);
+  if(BALL&&!RECON()){
     const tri=BALL.src.filter(s=>s===1).length, ip=BALL.src.filter(s=>s===2).length;
     document.getElementById('stats').insertAdjacentHTML('beforeend',
       `<div class="stat"><dt><i class="dot" style="background:#ffd60a"></i>羽球 3D</dt><dd>${Math.round((tri+ip)/NF*100)}% <small>格有球 · 三角化 ${tri} / 內插 ${ip} · 重投影誤差中位數 ${BALL.err_median??'–'} px</small></dd></div>`);
@@ -525,7 +528,7 @@ function drawOverlay(f){
       ctx.fillStyle='#fff';
       pts.forEach(p=>{if(!p)return;ctx.beginPath();ctx.arc(p[0]*s,p[1]*s,Math.max(1.3,4.5*s),0,6.284);ctx.fill();});
     });
-    if(RECON()&&showRacket&&META.racket_shape){
+    if(RECON()&&showRacket2&&META.racket_shape){
       const sh=META.racket_shape, dpr=Math.min(devicePixelRatio,2), rim=racketPts(sh,32);
       SIDES.forEach(side=>{const M=META.players[side].racket[f]; if(!M)return;
         const pj=v=>{const p=project(c,racketWorld(M,v)); return p?[p[0]*s,p[1]*s]:null;};
@@ -539,7 +542,7 @@ function drawOverlay(f){
         ctx.fillStyle='rgba(255,255,255,.18)'; ctx.beginPath(); R.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.fill();
       });
     }
-    if(BALL&&showBall){
+    if(BALL&&showBall2){
       const dpr=Math.min(devicePixelRatio,2), d2=BALL.det2d&&BALL.det2d[v]?BALL.det2d[v][f]:null;
       if(d2){const x=d2[0]*s,y=d2[1]*s,r=5*dpr; ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=1.3*dpr;
         ctx.beginPath(); ctx.moveTo(x-r,y-r); ctx.lineTo(x+r,y+r); ctx.moveTo(x+r,y-r); ctx.lineTo(x-r,y+r); ctx.stroke();}
@@ -629,8 +632,10 @@ document.querySelectorAll('.sp').forEach(b=>b.addEventListener('click',()=>{
 function toggle(id,fn){const b=document.getElementById(id);b.addEventListener('click',()=>{const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);fn(on);});}
 toggle('bSkel',on=>{showSkel=on;drawOverlay(Math.max(cur,0));});
 toggle('bBox',on=>{showBox=on;drawOverlay(Math.max(cur,0));});
-toggle('bRacket',on=>{showRacket=on;setRackets(Math.max(cur,0));drawOverlay(Math.max(cur,0));});
-toggle('bBall',on=>{showBall=on;setBall(Math.max(cur,0));drawOverlay(Math.max(cur,0));});
+toggle('bRacket',on=>{showRacket2=on;drawOverlay(Math.max(cur,0));});
+toggle('bBall',on=>{showBall2=on;drawOverlay(Math.max(cur,0));});
+toggle('bRacket3',on=>{showRacket3=on;setRackets(Math.max(cur,0));});
+toggle('bBall3',on=>{showBall3=on;setBall(Math.max(cur,0));});
 toggle('bCams',on=>camG.visible=on);
 toggle('bNet',on=>netG.visible=on);
 toggle('bGT',on=>{showGT=on; const f=cur; cur=-1; setFrame(Math.max(f,0));});
